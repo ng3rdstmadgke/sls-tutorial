@@ -4,11 +4,11 @@ frameworkVersion: '3'
 provider:
   name: aws
   runtime: python3.9
-  stage: dev  # ステージ名
+  stage: ${opt:stage, "dev"}  # ステージ名 (--stageオプションがなければdev)
   region: "ap-northeast-1"  # デプロイするリージョン
   deploymentBucket:
     name: "sls-deploy-gcappr58"  # デプロイアーティファクトを保存するs3バケット
-  apiGateway:
+  apiGateway:  # API Gateway v1 REST APIの設定
     # バイナリファイルを返却できるようにする設定
     binaryMediaTypes:
       - '*/*'
@@ -36,7 +36,7 @@ functions:
           method: ANY
           cors: true
     environment:  # 環境変数の定義
-      API_GATEWAY_BASE_PATH: "/dev"
+      API_GATEWAY_BASE_PATH: "/${opt:stage}"
 
 # you can add CloudFormation resource templates here
 resources:

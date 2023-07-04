@@ -158,7 +158,7 @@ functions:
           method: ANY
           cors: true
     environment:  # 環境変数の定義
-      API_GATEWAY_BASE_PATH: "/dev"
+      API_GATEWAY_BASE_PATH: "/${self:provider.stage}"  # provider.stage の値を利用
 ```
 
 `provider` にawsの設定を記述しましょう
@@ -175,7 +175,7 @@ functions:
 provider:
   name: aws
   runtime: python3.9
-  stage: dev  # ステージ名
+  stage: ${opt:stage, "dev"}  # ステージ名 (--stageオプションがなければdev)
   region: "ap-northeast-1"  # デプロイするリージョン
   deploymentBucket:
     name: "sls-deploy-gcappr58"  # デプロイアーティファクトを保存するs3バケット
@@ -277,5 +277,9 @@ def get_env() -> Environment:
 # デプロイ
 
 ```bash
-sls deploy
+# デプロイ
+sls deploy --stage prd
+
+# 削除
+sls remove --stage prd
 ```
