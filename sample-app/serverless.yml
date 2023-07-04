@@ -112,3 +112,9 @@ functions:
 #     NewOutput:
 #       Description: "Description for the output"
 #       Value: "Some output value"
+custom:
+    PythonRequirements: # requirements.txt に記載したpythonライブラリをビルドする設定
+        dockerizePip: true # pythonライブラリのビルドをdockerで行う設定
+        layer: true # pythonライブラリをレイヤーとしてデプロイする設定
+plugins:
+  - serverless-python-requirements
