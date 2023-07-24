@@ -37,6 +37,11 @@ functions:
           cors: true
     environment:  # 環境変数の定義
       API_GATEWAY_BASE_PATH: "/${opt:stage}"
+    layers:
+      # serverless-python-requirementsプラグインで作成したLayerを利用する設定を記述
+      # https://www.serverless.com/plugins/serverless-python-requirements#lambda-layer
+      - Ref: PythonRequirementsLambdaLayer
+
 
 # you can add CloudFormation resource templates here
 resources:
@@ -55,7 +60,7 @@ resources:
                 Service:
                   - lambda.amazonaws.com
         ManagedPolicyArns:
-          - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole 
+          - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
         Policies:
           - PolicyName: ApiServerPolicy
             PolicyDocument:
@@ -72,8 +77,8 @@ resources:
                     - "dax:*"
 
 custom:
-    PythonRequirements: # requirements.txt に記載したpythonライブラリをビルドする設定
-        dockerizePip: true # pythonライブラリのビルドをdockerで行う設定
-        layer: true # pythonライブラリをレイヤーとしてデプロイする設定
+  pythonRequirements:  # requirements.txt に記載したpythonライブラリをビルドする設定
+    dockerizePip: true  # pythonライブラリのビルドをdockerで行う設定
+    layer: true  # pythonライブラリをレイヤーとしてデプロイする設定
 plugins:
   - serverless-python-requirements
