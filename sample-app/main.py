@@ -16,7 +16,12 @@ allow_origins = ["*"]
 @app.get("/api/hello")
 def hello():
     env = get_env()
-    return {"hoge": env.api_gateway_base_path}
+    return {"hello": env.api_gateway_base_path}
+
+@app.get("/api/world")
+def world():
+    env = get_env()
+    return {"world": env.api_gateway_base_path}
 
 app.mount("/", StaticFiles(directory=f"./static", html=True), name="static")
 

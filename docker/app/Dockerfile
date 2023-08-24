@@ -1,8 +1,5 @@
 FROM public.ecr.aws/lambda/python:3.9
 
-ARG host_uid
-ARG host_gid
-
 ENV PATH $PATH:/usr/sbin
 
 # update package
@@ -28,14 +25,6 @@ COPY sample-app/requirements.txt .
 RUN pip3 install --upgrade pip && pip3 install -r requirements.txt
 
 COPY sample-app /opt/app/api
-
-RUN groupadd -g 13567 sysadmin && echo "%sysadmin ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/sysadmin
-
-RUN groupadd -g $host_gid app && \
-    useradd -u $host_uid -o -m -g $host_gid -s /bin/bash app && \
-    usermod -aG sysadmin app
-
-RUN chown -R app:app /opt
 
 # importの起点となるパスを環境変数として定義
 ENV PYTHONPATH=/opt/app/api
