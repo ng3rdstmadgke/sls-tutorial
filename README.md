@@ -62,9 +62,9 @@ sls plugin install -n serverless-python-requirements
 
 # ... 略 ...
 custom:
-    PythonRequirements: # requirements.txt に記載したpythonライブラリをビルドする設定
-        dockerizePip: true # pythonライブラリのビルドをdockerで行う設定
-        layer: true # pythonライブラリをレイヤーとしてデプロイする設定
+  pythonRequirements:  # requirements.txt に記載したpythonライブラリをビルドする設定
+    dockerizePip: true  # pythonライブラリのビルドをdockerで行う設定
+    layer: true  # pythonライブラリをレイヤーとしてデプロイする設定
 plugins:
   - serverless-python-requirements
 ```
@@ -159,6 +159,10 @@ functions:
           cors: true
     environment:  # 環境変数の定義
       API_GATEWAY_BASE_PATH: "/${self:provider.stage}"  # provider.stage の値を利用
+    layers:
+      # serverless-python-requirementsプラグインで作成したLayerを利用する設定を記述
+      # https://www.serverless.com/plugins/serverless-python-requirements#lambda-layer
+      - Ref: PythonRequirementsLambdaLayer
 ```
 
 `provider` にawsの設定を記述しましょう
