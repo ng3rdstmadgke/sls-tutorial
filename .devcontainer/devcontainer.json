@@ -1,0 +1,94 @@
+// Dev Container metadata reference: https://aka.ms/devcontainer.json
+{
+  /**
+   *
+   * Docker Compose を利用する場合に指定するプロパティ
+   * https://containers.dev/implementors/json_reference/#compose-specific
+   *
+   */
+  // (required) docker-compose.ymlのパスを指定
+  "dockerComposeFile": [
+    "docker-compose.yml"
+  ],
+
+  // (required) docker-compose.ymlで定義したサービスから、devcontainerとして起動するサービスを指定
+  "service": "main",
+
+  // docker-compose.ymlで定義したサービスから、devcontainerと同時に起動するサービスを指定する。
+  "runServices": [
+    "main"
+  ],
+  // ワーキングディレクトリの設定
+  // docker-compose.ymlのservices.main.volumesでマウントしたプロジェクトのディレクトリを指定
+  "workspaceFolder": "/sls-tutorial",
+
+
+
+  /**
+   *
+   * Lifecycle scripts
+   * https://containers.dev/implementors/json_reference/#lifecycle-scripts
+   *
+   */
+  // コンテナが初めて起動した直後に実行するコマンド
+  "onCreateCommand": "/bin/bash .devcontainer/on-create.sh",
+
+  // devcontainerにアタッチした直後に実行するコマンド
+  "postAttachCommand": "cat ~/.docker/config.json | jq -r 'del(.credsStore)' | tee ~/.docker/config.json",  // credsStoreがあるとリビルド・ECRへのログインができない
+
+  /**
+   *
+   * 一般的なプロパティ
+   * https://containers.dev/implementors/json_reference/#general-properties
+   *
+   */
+  // UIに表示するdevcontainerの名前
+  "name": "sls-tutorial",
+
+  // devcontainerをシャットダウンするときに関連するコンテナを停止するかどうか
+  "shutdownAction": "stopCompose",
+
+   // コンテナの環境変数設定
+  "containerEnv": {
+    // ホスト側のプロジェクトディレクトリ
+    // https://zenn.dev/arkbig/articles/devcontainer_8d4f6fd4ade4efa79e0277fef1ad06470ae68#variables-in-devcontainer.json
+    "HOST_PROJECT_ROOT": "${localWorkspaceFolder}",
+    // コンテナ側のプロジェクトディレクトリ
+    // https://zenn.dev/arkbig/articles/devcontainer_8d4f6fd4ade4efa79e0277fef1ad06470ae68#variables-in-devcontainer.json
+    "CONTAINER_PROJECT_ROOT": "${containerWorkspaceFolder}",
+    // pythonのパスを指定するための環境変数
+    "PYTHONPATH": "${containerWorkspaceFolder}/app"
+  },
+
+  // devcontainerに追加する機能の定義
+  // features一覧: https://containers.dev/features
+  "features": {
+    // docker outside of dockerを利用するための設定: https://github.com/devcontainers/features/tree/main/src/docker-outside-of-docker
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+  },
+
+  // vscodeの拡張機能をインストールするための設定
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        // Docs
+        "hediet.vscode-drawio",
+        "yzhang.markdown-all-in-one",
+        "bierner.github-markdown-preview",
+        "bierner.markdown-mermaid",
+
+        // IaC
+        "hashicorp.terraform",
+        "timvaneker.serverless-snippets",
+
+        // Backend
+        "ms-python.vscode-pylance",
+
+        // DevTools
+        "GitHub.copilot",
+        "GitHub.copilot-chat"
+
+      ]
+    }
+  }
+}
