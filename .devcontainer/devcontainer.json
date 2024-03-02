@@ -45,11 +45,6 @@
   // UIに表示するdevcontainerの名前
   "name": "sls-tutorial",
 
-  // ./bin/run.shで起動する、アプリコンテナをポートフォワード
-  "forwardPorts": [
-    "localhost:8000"
-  ],
-
   // devcontainerをシャットダウンするときに関連するコンテナを停止するかどうか
   "shutdownAction": "stopCompose",
 
