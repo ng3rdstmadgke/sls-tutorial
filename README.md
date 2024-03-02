@@ -28,13 +28,16 @@ SDK: 4.5.1
 # プロジェクト作成
 
 ```bash
+# 任意のプロジェクト名
+PROJECT_NAME=sls-tutorial-app
+
 # --template: AWSをプロバイダとしてPython3でプロジェクトを作成する場合は aws-python3 を指定
 # --name: 命名規則は ^[a-zA-Z][0-9a-zA-Z-]+$
 # --path: プロジェクトを作成するパスを指定します。
-$ sls create --template aws-python3 --name app --path app
+$ sls create --template aws-python3 --name $PROJECT_NAME --path $PROJECT_NAME
 
 # プロジェクトにcd
-$ cd app
+$ cd $PROJECT_NAME
 ```
 
 # アプリ実装
@@ -65,7 +68,7 @@ mkdir src static
 touch src/env.py static/index.html
 ```
 
-`app/main.py`
+`${PROJECT_NAME}/main.py`
 
 ```py
 from fastapi import FastAPI
@@ -93,7 +96,7 @@ app.mount("/", StaticFiles(directory=f"./static", html=True), name="static")
 handler = Mangum(app)
 ```
 
-`app/src/env.py`
+`${PROJECT_NAME}/src/env.py`
 
 ```py
 from functools import lru_cache
@@ -108,7 +111,7 @@ def get_env() -> Environment:
     return Environment()
 ```
 
-`app/static/index.html`
+`${PROJECT_NAME}/static/index.html`
 
 ```html
 
@@ -152,7 +155,7 @@ $ sls plugin install -n serverless-python-requirements
 
 `serverless.yml` の `plugins` にインストールしたプラグインを設定し、pythonライブラリのビルドをコンテナで行うオプション ( `dockerizePip: true` )と、ライブラリをレイヤーとしてデプロイする設定 ( `layer: true` ) を設定します。
 
-`app/serverless.yml`
+`${PROJECT_NAME}/serverless.yml`
 
 ```yml
 
@@ -169,7 +172,7 @@ plugins:
 
 サービス名を任意の名前に変更します。
 
-`app/serverless.yml`
+`${PROJECT_NAME}/serverless.yml`
 
 ```yml
 service: sls-tutorial-app
@@ -180,7 +183,7 @@ service: sls-tutorial-app
 
 - [Package | ServerlessFramework](https://www.serverless.com/framework/docs/providers/aws/guide/serverless.yml#package)
 
-`app/serverless.yml`
+`${PROJECT_NAME}/serverless.yml`
 
 ```yml
 package:
@@ -197,7 +200,7 @@ lambdaに適用するロールを `resources` 配下に定義します。
 - [AWS Resources | ServerlessFramework](https://www.serverless.com/framework/docs/providers/aws/guide/serverless.yml#aws-resources)
 
 
-`app/serverless.yml`
+`${PROJECT_NAME}/serverless.yml`
 
 ```yml
 resources:
@@ -245,7 +248,7 @@ APIGatewayの設定方法は `HTTP API` と `REST API` の2種類が用意され
 - [REST API (API Gateway v1)](https://www.serverless.com/framework/docs/providers/aws/events/apigateway)
 
 
-`app/serverless.yml`
+`${PROJECT_NAME}/serverless.yml`
 
 ```yml
 functions:
@@ -279,7 +282,7 @@ functions:
 
 `provider.deploymentBucket.name` には自身で用意したs3バケット名を指定してください。
 
-`app/serverless.yml`
+`${PROJECT_NAME}/serverless.yml`
 
 ```yml
 provider:
