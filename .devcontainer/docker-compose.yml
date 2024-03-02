@@ -1,0 +1,25 @@
+version: '3.2'
+services:
+  main:
+    hostname: main.local
+    build:
+      context: ../
+      dockerfile: docker/devcontainer/Dockerfile
+      args:
+        - http_proxy=
+        - https_proxy=
+        - no_proxy=
+        - npm_cafile_path=
+    volumes:  # docker-compose.yml があるディレクトリからの相対パスで指定する
+      - ..:/sls-tutorial:cached
+      - ~/.aws:/home/vscode/.aws:cached
+      - ~/.ssh:/home/vscode/.ssh:cached
+      - ~/.docker:/home/vscode/.docker:cached
+    command: sleep infinity
+    networks:
+      br-sls-tutorial: {}
+
+networks:
+  br-sls-tutorial:
+    driver: bridge
+    name: br-sls-tutorial

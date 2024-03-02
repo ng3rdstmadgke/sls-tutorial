@@ -3,7 +3,7 @@ frameworkVersion: '3'
 
 provider:
   name: aws
-  runtime: python3.9
+  runtime: python3.12
   stage: ${opt:stage, "dev"}  # ステージ名 (--stageオプションがなければdev)
   region: "ap-northeast-1"  # デプロイするリージョン
   deploymentBucket:

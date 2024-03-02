@@ -1,11 +1,11 @@
-FROM public.ecr.aws/lambda/python:3.9
+FROM public.ecr.aws/lambda/python:3.12
 
 ENV PATH $PATH:/usr/sbin
 
 # update package
-RUN yum update -y && \
-    yum install -y locales gcc unzip jq curl shadow-utils vim tmux sudo wget && \
-    yum install -y iputils-ping net-tools less groff
+RUN dnf update -y && \
+    dnf install -y gcc unzip jq curl shadow-utils vim tmux sudo wget && \
+    dnf install -y iputils-ping net-tools less groff
 
 # set timezone
 RUN ln -sf /usr/share/zoneinfo/Asia/Tokyo /etc/localtime
