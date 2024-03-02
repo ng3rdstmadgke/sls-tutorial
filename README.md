@@ -53,6 +53,10 @@ mangum~=0.17.0
 boto3~=1.34.54
 EOF
 
+# venv
+python -m venv .venv
+source .venv/bin/activate
+
 # requirements.txt のインストール
 $ pip install -r requirements.txt
 ```
