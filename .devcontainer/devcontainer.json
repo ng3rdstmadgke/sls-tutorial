@@ -78,6 +78,9 @@
       "extensions": [
         // Docs
         "hediet.vscode-drawio",
+        "yzhang.markdown-all-in-one",
+        "bierner.github-markdown-preview",
+        "bierner.markdown-mermaid",
 
         // IaC
         "hashicorp.terraform",

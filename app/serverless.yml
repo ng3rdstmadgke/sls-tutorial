@@ -1,4 +1,4 @@
-service: sample-app
+service: sls-tutorial-app
 frameworkVersion: '3'
 
 provider:
@@ -13,18 +13,11 @@ provider:
     binaryMediaTypes:
       - '*/*'
 
-package:
-  patterns:
-    - '!**' # すべてのファイルをexclude
-    - 'static/**'  # staticディレクトリは以下をinclude
-    - 'src/**'     # srcディレクトリは以下をinclude
-    - 'main.py' # main.pyをinclude
-
 functions:
   api:
     handler: main.handler  # main.pyのhandlerをハンドラとして利用する
-    timeout: 29
-    role: ApiServerRole  # resources配下に実装したロール名
+    timeout: 30
+    role: AppRole  # resources配下に実装したロール名
     events:
       # すべてのメソッド・リクエストを受け取る
       - http:
@@ -36,20 +29,18 @@ functions:
           method: ANY
           cors: true
     environment:  # 環境変数の定義
-      API_GATEWAY_BASE_PATH: "/${opt:stage}"
+      API_GATEWAY_BASE_PATH: "/${self:provider.stage}"  # provider.stage の値を利用
     layers:
       # serverless-python-requirementsプラグインで作成したLayerを利用する設定を記述
       # https://www.serverless.com/plugins/serverless-python-requirements#lambda-layer
       - Ref: PythonRequirementsLambdaLayer
 
-
-# you can add CloudFormation resource templates here
 resources:
   Resources:
-    ApiServerRole: # ManagedPolicyArnsとPoliciesを両方利用した例
+    AppRole: # ManagedPolicyArnsとPoliciesを両方利用した例
       Type: AWS::IAM::Role
       Properties:
-        RoleName: SampleApp-ApiServerRole
+        RoleName: SlsTutorial-AppRole
         AssumeRolePolicyDocument:
           Version: "2012-10-17"
           Statement:
@@ -60,7 +51,7 @@ resources:
                 Service:
                   - lambda.amazonaws.com
         ManagedPolicyArns:
-          - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+          - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole 
         Policies:
           - PolicyName: ApiServerPolicy
             PolicyDocument:
@@ -76,9 +67,16 @@ resources:
                     - "dynamodb:*"
                     - "dax:*"
 
+package:
+  patterns:
+    - '!**' # すべてのファイルをexclude
+    - 'static/**'  # staticディレクトリは以下をinclude
+    - 'src/**'     # srcディレクトリは以下をinclude
+    - 'main.py' # main.pyをinclude
+
 custom:
   pythonRequirements:  # requirements.txt に記載したpythonライブラリをビルドする設定
-    dockerizePip: true  # pythonライブラリのビルドをdockerで行う設定
+    dockerImage: public.ecr.aws/lambda/python:3.12  # pythonライブラリのインストールを行うdockerイメージを指定
     layer: true  # pythonライブラリをレイヤーとしてデプロイする設定
 plugins:
   - serverless-python-requirements
