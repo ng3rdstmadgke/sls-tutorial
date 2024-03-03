@@ -64,21 +64,26 @@ $ pip install -r requirements.txt
 ## アプリの実装
 
 ```bash
-rm -f handler.py
+rm -f *.py
+
 touch main.py  # serverless.ymlのfunctions.api.handlerに指定したファイル
 
 # lambda関数にインクルードされるファイルを作成
-mkdir src static
-touch src/env.py static/index.html
+mkdir src/routers src/templates static
+touch src/env.py
+touch src/routers/views.py src/routers/edit_distance.py
+touch src/templates/base.html src/templates/index.html src/templates/edit_distance.html
+touch static/.gitkeep
 ```
 
 `${PROJECT_NAME}/main.py`
 
 ```py
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket
 from fastapi.staticfiles import StaticFiles
 from mangum import Mangum
 
+from src.routers import edit_distance, views
 from src.env import get_env
 
 app = FastAPI(
@@ -89,12 +94,15 @@ app = FastAPI(
 )
 allow_origins = ["*"]
 
-
 @app.get("/api/hello")
 def hello():
     env = get_env()
     return {"hoge": env.api_gateway_base_path}
 
+app.include_router(views.router)
+app.include_router(edit_distance.router, prefix="/api")
+
+# 静的ファイルの配信
 app.mount("/", StaticFiles(directory=f"./static", html=True), name="static")
 
 handler = Mangum(app)
@@ -108,28 +116,226 @@ from pydantic_settings import BaseSettings
 
 
 class Environment(BaseSettings):
-    api_gateway_base_path: str = "/dev"
+    api_gateway_base_path: str = ""
 
 @lru_cache
 def get_env() -> Environment:
     return Environment()
 ```
 
-`${PROJECT_NAME}/static/index.html`
+### APIの実装
+
+`${PROJECT_NAME}/src/routers/edit_distance.py`
+
+```python
+from fastapi import Depends, APIRouter, HTTPException
+from pydantic import BaseModel
+
+router = APIRouter()
+
+"""
+src を dst に変換するための編集距離を計算するメソッド
+src       : 編集対象文字列
+dst       : 目標文字列
+add     : src に一文字追加するコスト
+remove  : src から一文字削除するコスト
+replace : src を一文字置換するコスト
+"""
+def edit_dist(src, dst, add=1, remove=1, replace=1):
+  len_a = len(src) + 1
+  len_b = len(dst) + 1
+  # 配列の初期化
+  arr = [[-1 for col in range(len_a)] for row in range(len_b)]
+  arr[0][0] = 0
+  for row in range(1, len_b):
+    arr[row][0] = arr[row - 1][0] + add
+  for col in range(1, len_a):
+    arr[0][col] = arr[0][col - 1] + remove
+  # 編集距離の計算
+  def go(row, col):
+    if (arr[row][col] != -1):
+      return arr[row][col]
+    else:
+      dist1 = go(row - 1, col) + add
+      dist2 = go(row, col - 1) + remove
+      dist3 = go(row - 1, col - 1)
+      arr[row][col] = min(dist1, dist2, dist3) if (dst[row - 1] == src[col - 1]) else min(dist1, dist2, dist3 + replace)
+      return arr[row][col]
+  return go(len_b - 1, len_a - 1)
+
+class EditDistancePostSchema(BaseModel):
+    src: str
+    dst: str
+
+@router.post("/edit_distance")
+def edit_distance(
+    data: EditDistancePostSchema,
+):
+    dist = edit_dist(data.src, data.dst)
+    return {
+        "src": data.src,
+        "dst": data.dst,
+        "edit_distance": dist,
+    }
+
+
+```
+
+### ビューの実装
+
+`${PROJECT_NAME}/src/routers/views.py`
+
+```python
+from fastapi import Request
+from fastapi import Depends, APIRouter, HTTPException
+from pydantic import BaseModel
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+
+from src.env import get_env
+
+router = APIRouter()
+
+templates = Jinja2Templates(directory="src/templates")
+
+@router.get("/", response_class=HTMLResponse)
+async def index(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="index.html",
+        context={
+            "base_path": get_env().api_gateway_base_path
+        }
+    )
+
+@router.get("/edit_distance")
+async def edit_distance(request: Request):
+    return templates.TemplateResponse(
+        request=request,
+        name="edit_distance.html",
+        context={
+            "base_path": get_env().api_gateway_base_path
+        }
+    )
+
+```
+
+### テンプレートの実装
+
+
+`${PROJECT_NAME}/src/templates/base.html`
 
 ```html
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Document</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+  {% block head %}
+  {% endblock %}
+  <title>
+    {% block title %}{% endblock %} - My Webpage
+  </title>
 </head>
 <body>
-  <h1>Hello World</h1>
+  <div style="height: 100vh; box-sizing: border-box">
+    <!-- Header -->
+    <nav class="navbar navbar-expand-md bg-dark border-bottom border-bottom-dark" data-bs-theme="dark">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="{{ base_path }}/">MyApps</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNavDropdown">
+          <ul class="navbar-nav">
+            <li class="nav-item">
+              <a class="nav-link active" aria-current="page" href="{{ base_path }}/">Top</a>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                Apps
+              </a>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="{{ base_path }}/edit_distance">Edit Distance</a></li>
+              </ul>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Content -->
+    <div class="container mt-3">
+      {% block content %}{% endblock %}
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer mt-auto py-2 bg-dark border-bottom border-bottom-dark" data-bs-theme="dark" style="position: absolute; bottom: 0; width: 100%;">
+      <div class="d-flex justify-content-center">
+        <span class="text-body-secondary"> &copy; Copyright 2024 by sls-tutorial </span>
+      </div>
+    </footer>
+  </div>
 </body>
 </html>
+```
+
+`${PROJECT_NAME}/src/templates/index.html`
+
+```html
+{% extends "base.html" %}
+{% block title %}Top{% endblock %}
+{% block content %}
+  <h1>Apps</h1>
+  <ol>
+    <li><a href="{{ base_path }}/edit_distance">Edit Distance</a></li>
+  </ol>
+{% endblock %}
+```
+
+`${PROJECT_NAME}/src/templates/edit_distance.html`
+
+```html
+{% extends "base.html" %}
+{% block title %}Top{% endblock %}
+{% block content %}
+    <h1>Edit Distance</h1>
+    <form id="js_form">
+      <div class="row mb-3">
+        <label for="js_src" class="col-sm-2 col-form-label">src text</label>
+        <div class="col-sm-10">
+          <input type="text" class="form-control" id="js_src">
+        </div>
+      </div>
+      <div class="row mb-3">
+        <label for="js_dst" class="col-sm-2 col-form-label">dst text</label>
+        <div class="col-sm-10">
+          <input type="text" class="form-control" id="js_dst">
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary">Submit</button>
+    </form>
+    <div id='js_response' class="mt-5 fs-2">
+    </div>
+    <script>
+      document.getElementById("js_form").addEventListener("submit", async function(e) {
+        e.preventDefault()
+        var base_path = "{{ base_path }}"
+        var url = `${base_path}/api/edit_distance`
+        var src = document.getElementById("js_src").value
+        var dst = document.getElementById("js_dst").value
+        var response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({src: src, dst: dst})
+        })
+        var data = await response.json()
+        document.getElementById('js_response').textContent = "Edit distance: " + data.edit_distance
+      })
+    </script>
+{% endblock %}
 ```
 
 ## 起動してみる

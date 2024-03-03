@@ -49,10 +49,5 @@ RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - &&\
     apt-get install -y nodejs
 
-# pip インストール
-#COPY app/requirements.txt /tmp/requirements.txt
-#RUN pip install --upgrade pip & \
-#    pip install -r /tmp/requirements.txt
-
 ## serverless framework インストール
-#RUN npm install -g serverless
+RUN npm install -g serverless
