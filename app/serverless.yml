@@ -76,6 +76,7 @@ package:
 
 custom:
   pythonRequirements:  # requirements.txt に記載したpythonライブラリをビルドする設定
+    dockerizePip: true  # layerの作成をdockerで行う
     dockerImage: public.ecr.aws/lambda/python:3.12  # pythonライブラリのインストールを行うdockerイメージを指定
     layer: true  # pythonライブラリをレイヤーとしてデプロイする設定
 plugins:

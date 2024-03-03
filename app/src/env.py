@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings
 
 
 class Environment(BaseSettings):
-    api_gateway_base_path: str = "/dev"
+    api_gateway_base_path: str = ""
 
 @lru_cache
 def get_env() -> Environment:
