@@ -3,7 +3,7 @@ frameworkVersion: '3'
 
 provider:
   name: aws
-  runtime: python3.12
+  runtime: python3.11
   stage: ${opt:stage, "dev"}  # ステージ名 (--stageオプションがなければdev)
   region: "ap-northeast-1"  # デプロイするリージョン
   deploymentBucket:
@@ -77,7 +77,6 @@ package:
 custom:
   pythonRequirements:  # requirements.txt に記載したpythonライブラリをビルドする設定
     dockerizePip: true  # layerの作成をdockerで行う
-    dockerImage: public.ecr.aws/lambda/python:3.12  # pythonライブラリのインストールを行うdockerイメージを指定
     layer: true  # pythonライブラリをレイヤーとしてデプロイする設定
 plugins:
   - serverless-python-requirements

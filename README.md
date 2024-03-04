@@ -3,19 +3,75 @@
 - [Tutorial | Serverless Framework](https://www.serverless.com/framework/docs/tutorial)
 - [FastAPI](https://fastapi.tiangolo.com/)
 
-# サーバーレスフレームワークのインストール
+# ホストの環境準備
+
+## Dockerインストール
+
+Amazon Linux 2023
 
 ```bash
-# pythonのバージョン確認
-$ python --version
-Python 3.12.2
 
-# nodejsのバージョン確認
+# dockerのインストール
+$ sudo dnf update -y
+$ sudo dnf install -y docker
+```
+
+そのほかのOS
+
+https://docs.docker.com/engine/install/
+
+## Dockerの初期設定
+
+```bash
+# サービスの有効化・起動
+$ sudo systemctl enable docker
+$ sudo systemctl start docker
+
+# ユーザーをdockerグループに追加
+$ sudo usermod -aG docker $USER
+
+# 再ログインしてdockerコマンドを実行できるか確認
+$ exit
+$ docker ps
+```
+
+
+# AWSリソース作成
+
+## s3バケット作成
+
+ServerlessFrameworkのdeployで利用するs3バケットを作成してください。
+
+# サーバーレスフレームワークのインストール
+
+## nvmインストール
+
+https://github.com/nvm-sh/nvm
+
+```bash
+$ curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+
+$ source ~/.bashrc
+
+# インストール可能なnodeのバージョン一覧
+$ nvm ls-remote
+
+# LTS(v20.*)をインストール
+$ nvm install lts/iron
+
+# インストールしたバージョンをアクティベート
+$ nvm use lts/iron
+
+# バージョン確認
 $ node --version
 v20.11.1
+```
 
+## serverless framework インストール
+
+```bash
 # インストール
-$ sudo npm install -g serverless
+$ npm install -g serverless
 
 # slsコマンドが利用できるか確認
 $ sls -v
@@ -509,10 +565,12 @@ provider:
 ```
 
 
-
 # デプロイ
 
 ```bash
+# プラグインなどパッケージのインストール (一応)
+npm install
+
 # デプロイ
 sls deploy --stage prd
 
