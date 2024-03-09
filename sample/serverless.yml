@@ -1,0 +1,89 @@
+service: sls-tutorial-sample
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.11
+  stage: ${opt:stage, "dev"}  # ステージ名 (--stageオプションがなければdev)
+  region: "ap-northeast-1"  # デプロイするリージョン
+  deploymentBucket:
+    name: "sls-deploy-gcappr58"  # デプロイアーティファクトを保存するs3バケット
+  apiGateway:  # API Gateway v1 REST APIの設定
+    # バイナリファイルを返却できるようにする設定
+    binaryMediaTypes:
+      - '*/*'
+
+custom:
+  pythonRequirements:  # requirements.txt に記載したpythonライブラリをビルドする設定
+    dockerizePip: true  # layerの作成をdockerで行う
+    layer: true  # pythonライブラリをレイヤーとしてデプロイする設定
+
+plugins:
+  - serverless-python-requirements
+
+package:
+  patterns:
+    - '!**' # すべてのファイルをexclude
+    - 'static/**'  # staticディレクトリは以下をinclude
+    - 'src/**'     # srcディレクトリは以下をinclude
+    - 'main.py' # main.pyをinclude
+
+resources:
+  Resources:
+    # Lambdaのタスクロール
+    AppRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: ${self:service}-${self:provider.stage}-AppRole
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - sts:AssumeRole
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+        ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+    AppRolePolicy:
+      Type: AWS::IAM::ManagedPolicy
+      Properties:
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Resource: "*"
+              Effect: Allow
+              Action:
+                - "s3:*"
+            - Resource: "*"
+              Effect: Allow
+              Action:
+                - "dynamodb:*"
+                - "dax:*"
+        ManagedPolicyName: ${self:service}-${self:provider.stage}-AppRolePolicy
+        Roles:
+          - Ref: AppRole
+
+functions:
+  api:
+    handler: main.handler  # main.pyのhandlerをハンドラとして利用する
+    timeout: 30
+    role: AppRole  # resources配下に実装したロール名
+    events:
+      # すべてのメソッド・リクエストを受け取る
+      - http:
+          path: /
+          method: ANY
+          cors: true  # CORSを許可する
+      - http:
+          path: /{path+}
+          method: ANY
+          cors: true
+    environment:  # 環境変数の定義
+      API_GATEWAY_BASE_PATH: "/${self:provider.stage}"  # provider.stage の値を利用
+    layers:
+      # serverless-python-requirementsプラグインで作成したLayerを利用する設定を記述
+      # https://www.serverless.com/plugins/serverless-python-requirements#lambda-layer
+      - Ref: PythonRequirementsLambdaLayer

@@ -5,6 +5,23 @@
 
 # ホストの環境準備
 
+## Python3.11のインストール
+
+Amazon Linux 2023
+
+```bash
+$ sudo dnf update -y
+$ sudo dnf install python3.11
+```
+
+Ubuntu
+
+```bash
+$ sudo apt update
+$ sudo apt install python3.11
+```
+
+
 ## Dockerインストール
 
 Amazon Linux 2023
@@ -85,22 +102,43 @@ SDK: 4.5.1
 
 ```bash
 # 任意のプロジェクト名
-PROJECT_NAME=sls-tutorial-app
+$ PROJECT_NAME=sample
 
-# --template: AWSをプロバイダとしてPython3でプロジェクトを作成する場合は aws-python3 を指定
-# --name: 命名規則は ^[a-zA-Z][0-9a-zA-Z-]+$
-# --path: プロジェクトを作成するパスを指定します。
-$ sls create --template aws-python3 --name $PROJECT_NAME --path $PROJECT_NAME
+# プロジェクト作成
+$ mkdir -p $PROJECT_NAME
 
 # プロジェクトにcd
 $ cd $PROJECT_NAME
 ```
 
-# アプリ実装
-
-## requirements.txtの作成
+ファイル・ディレクトリの作成
 
 ```bash
+# .gitignore作成
+$ cat <<EOF > .gitignore
+# Distribution / packaging
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Serverless directories
+.serverless
+EOF
+
+# requirements.txt
 $ cat <<EOF > requirements.txt
 fastapi[all]~=0.110.0
 PyMySQL~=1.1.0
@@ -109,9 +147,68 @@ mangum~=0.17.0
 boto3~=1.34.54
 EOF
 
+# serverless frameworkの設定ファイル
+cat <<EOF > serverless.yml
+service: sls-tutorial-${PROJECT_NAME}
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.11
+EOF
+
+# ディレクトリ作成
+mkdir -p src/routers src/templates src/utils static
+
+# lambda関数のエントリーポイントとなるファイル
+touch main.py
+
+# 環境変数定義ファイル
+touch src/env.py
+
+# view・api定義ファイル
+touch src/routers/views.py src/routers/apis.py
+
+# テンプレートファイル
+touch src/templates/base.html src/templates/index.html src/templates/edit_distance.html
+
+# 編集距離関数定義ファイル
+touch src/utils/edit_distance.py
+
+touch static/.gitkeep
+```
+
+ディレクトリ構成
+
+```
+- $PROJECT_NAME
+  - main.py  # lambda関数のハンドラとして指定するファイル
+  - src/  # main.pyから参照するPythonファイル
+    - routers/
+      - views.py  # htmlを返却するルートを定義するファイル
+      - apis.py  # APIを定義するファイル
+    - templates/
+      - base.html  # テンプレートの共通部分を定義するファイル
+      - index.html  # topページのテンプレート
+      - edit_distance.html  # Edit Distanceページのテンプレート
+    - utils/
+      - edit_distance.py  # EditDistanceの関数定義ファイル
+    - env.py  # 環境変数定義ファイル
+  - static/  # 静的ファイル置き場
+  - requirements.txt
+  - serverless.yml  # serverless frameworkの設定ファイル
+  - .gitignore
+```
+
+# アプリ実装
+
+## requirements.txtの作成
+
+```bash
 # venv
-python -m venv .venv
-source .venv/bin/activate
+$ python3.11 -m venv .venv
+$ source .venv/bin/activate
 
 # requirements.txt のインストール
 $ pip install -r requirements.txt
@@ -119,27 +216,13 @@ $ pip install -r requirements.txt
 
 ## アプリの実装
 
-```bash
-rm -f *.py
-
-touch main.py  # serverless.ymlのfunctions.api.handlerに指定したファイル
-
-# lambda関数にインクルードされるファイルを作成
-mkdir src/routers src/templates static
-touch src/env.py
-touch src/routers/views.py src/routers/edit_distance.py
-touch src/templates/base.html src/templates/index.html src/templates/edit_distance.html
-touch static/.gitkeep
-```
-
-`${PROJECT_NAME}/main.py`
+`main.py`
 
 ```py
 from fastapi import FastAPI, WebSocket
 from fastapi.staticfiles import StaticFiles
-from mangum import Mangum
 
-from src.routers import edit_distance, views
+from src.routers import apis, views
 from src.env import get_env
 
 app = FastAPI(
@@ -150,21 +233,19 @@ app = FastAPI(
 )
 allow_origins = ["*"]
 
-@app.get("/api/hello")
-def hello():
-    env = get_env()
-    return {"hoge": env.api_gateway_base_path}
-
 app.include_router(views.router)
-app.include_router(edit_distance.router, prefix="/api")
+app.include_router(apis.router, prefix="/api")
 
 # 静的ファイルの配信
 app.mount("/", StaticFiles(directory=f"./static", html=True), name="static")
 
+# Lambdaのハンドラ
+from mangum import Mangum
 handler = Mangum(app)
+
 ```
 
-`${PROJECT_NAME}/src/env.py`
+`src/env.py`
 
 ```py
 from functools import lru_cache
@@ -181,14 +262,11 @@ def get_env() -> Environment:
 
 ### APIの実装
 
-`${PROJECT_NAME}/src/routers/edit_distance.py`
+edit distanceの関数を定義
+
+`src/utils/edit_distance.py`
 
 ```python
-from fastapi import Depends, APIRouter, HTTPException
-from pydantic import BaseModel
-
-router = APIRouter()
-
 """
 src を dst に変換するための編集距離を計算するメソッド
 src       : 編集対象文字列
@@ -219,6 +297,16 @@ def edit_dist(src, dst, add=1, remove=1, replace=1):
       return arr[row][col]
   return go(len_b - 1, len_a - 1)
 
+```
+
+`src/routers/apis.py`
+
+```python
+from fastapi import Depends, APIRouter, HTTPException
+from pydantic import BaseModel
+from src.utils import edit_dist
+
+router = APIRouter()
 class EditDistancePostSchema(BaseModel):
     src: str
     dst: str
@@ -233,13 +321,11 @@ def edit_distance(
         "dst": data.dst,
         "edit_distance": dist,
     }
-
-
 ```
 
 ### ビューの実装
 
-`${PROJECT_NAME}/src/routers/views.py`
+`src/routers/views.py`
 
 ```python
 from fastapi import Request
@@ -279,7 +365,7 @@ async def edit_distance(request: Request):
 ### テンプレートの実装
 
 
-`${PROJECT_NAME}/src/templates/base.html`
+`src/templates/base.html`
 
 ```html
 <!DOCTYPE html>
@@ -290,11 +376,11 @@ async def edit_distance(request: Request):
   {% block head %}
   {% endblock %}
   <title>
-    {% block title %}{% endblock %} - My Webpage
+    {% block title %}{% endblock %}
   </title>
 </head>
 <body>
-  <div style="height: 100vh; box-sizing: border-box">
+  <div>
     <!-- Header -->
     <nav class="navbar navbar-expand-md bg-dark border-bottom border-bottom-dark" data-bs-theme="dark">
       <div class="container-fluid">
@@ -324,19 +410,12 @@ async def edit_distance(request: Request):
     <div class="container mt-3">
       {% block content %}{% endblock %}
     </div>
-
-    <!-- Footer -->
-    <footer class="footer mt-auto py-2 bg-dark border-bottom border-bottom-dark" data-bs-theme="dark" style="position: absolute; bottom: 0; width: 100%;">
-      <div class="d-flex justify-content-center">
-        <span class="text-body-secondary"> &copy; Copyright 2024 by sls-tutorial </span>
-      </div>
-    </footer>
   </div>
 </body>
 </html>
 ```
 
-`${PROJECT_NAME}/src/templates/index.html`
+`src/templates/index.html`
 
 ```html
 {% extends "base.html" %}
@@ -349,7 +428,7 @@ async def edit_distance(request: Request):
 {% endblock %}
 ```
 
-`${PROJECT_NAME}/src/templates/edit_distance.html`
+`src/templates/edit_distance.html`
 
 ```html
 {% extends "base.html" %}
@@ -424,25 +503,18 @@ $ sls plugin install -n serverless-python-requirements
 `${PROJECT_NAME}/serverless.yml`
 
 ```yml
-
 # ... 略 ...
+
 custom:
   pythonRequirements:  # requirements.txt に記載したpythonライブラリをビルドする設定
-    dockerImage: public.ecr.aws/lambda/python:3.12  # pythonライブラリのインストールを行うdockerイメージを指定
+    dockerizePip: true  # layerの作成をdockerで行う
     layer: true  # pythonライブラリをレイヤーとしてデプロイする設定
+
 plugins:
   - serverless-python-requirements
 ```
 
 ## serverless.yml の設定
-
-サービス名を任意の名前に変更します。
-
-`${PROJECT_NAME}/serverless.yml`
-
-```yml
-service: sls-tutorial-app
-```
 
 
 `package` にはlambdaパッケージに含めるファイルをパターンで定義します。
@@ -452,6 +524,8 @@ service: sls-tutorial-app
 `${PROJECT_NAME}/serverless.yml`
 
 ```yml
+# ... 略 ...
+
 package:
   patterns:
     - '!**' # すべてのファイルをexclude
@@ -469,12 +543,15 @@ lambdaに適用するロールを `resources` 配下に定義します。
 `${PROJECT_NAME}/serverless.yml`
 
 ```yml
+# ... 略 ...
+
 resources:
   Resources:
-    AppRole: # ManagedPolicyArnsとPoliciesを両方利用した例
+    # Lambdaのタスクロール
+    AppRole:
       Type: AWS::IAM::Role
       Properties:
-        RoleName: SlsTutorial-AppRole
+        RoleName: ${self:service}-${self:provider.stage}-AppRole
         AssumeRolePolicyDocument:
           Version: "2012-10-17"
           Statement:
@@ -486,20 +563,24 @@ resources:
                   - lambda.amazonaws.com
         ManagedPolicyArns:
           - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
-        Policies:
-          - PolicyName: ApiServerPolicy
-            PolicyDocument:
-              Version: "2012-10-17"
-              Statement:
-                - Resource: "*"
-                  Effect: Allow
-                  Action:
-                    - "s3:*"
-                - Resource: "*"
-                  Effect: Allow
-                  Action:
-                    - "dynamodb:*"
-                    - "dax:*"
+    AppRolePolicy:
+      Type: AWS::IAM::ManagedPolicy
+      Properties:
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Resource: "*"
+              Effect: Allow
+              Action:
+                - "s3:*"
+            - Resource: "*"
+              Effect: Allow
+              Action:
+                - "dynamodb:*"
+                - "dax:*"
+        ManagedPolicyName: ${self:service}-${self:provider.stage}-AppRolePolicy
+        Roles:
+          - Ref: AppRole
 ```
 
 `functions` にlambda関数の設定を記述します。
@@ -517,6 +598,8 @@ APIGatewayの設定方法は `HTTP API` と `REST API` の2種類が用意され
 `${PROJECT_NAME}/serverless.yml`
 
 ```yml
+# ... 略 ...
+
 functions:
   api:
     handler: main.handler  # main.pyのhandlerをハンドラとして利用する
@@ -551,9 +634,11 @@ functions:
 `${PROJECT_NAME}/serverless.yml`
 
 ```yml
+# ... 略 ...
+
 provider:
   name: aws
-  runtime: python3.12
+  runtime: python3.11
   stage: ${opt:stage, "dev"}  # ステージ名 (--stageオプションがなければdev)
   region: "ap-northeast-1"  # デプロイするリージョン
   deploymentBucket:
@@ -562,6 +647,8 @@ provider:
     # バイナリファイルを返却できるようにする設定
     binaryMediaTypes:
       - '*/*'
+
+# ... 略 ...
 ```
 
 
