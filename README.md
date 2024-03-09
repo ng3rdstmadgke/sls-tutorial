@@ -52,6 +52,15 @@ $ exit
 $ docker ps
 ```
 
+# サンプルソースコードを動かしてみる
+
+```bash
+$ bin/run.sh sample
+# localhost:8080をポートフォワードして以下のURLにアクセス
+# - http://localhost:8080/
+# - http://localhost:8080/api/docs
+```
+
 
 # AWSリソース作成
 
